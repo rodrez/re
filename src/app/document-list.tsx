@@ -1,6 +1,7 @@
 import ResearchList from "@/components/research/research-list"
+import { useParams } from "react-router"
 
-const researchItems = [
+const linear_algebra = [
   {
     id: "1",
     title: "The Impact of AI on Modern Society",
@@ -57,10 +58,46 @@ const researchItems = [
   },
 ]
 
+const calculus = [
+  {
+    id: "7",
+    title: "The Role of Mathematics in Art",
+    author: "Dr. Laura Martinez",
+    type: "Research Paper",
+    year: 2022,
+    description:
+      "An exploration of the connections between mathematics and art, including symmetry, fractals, and the golden ratio.",
+  },
+  {
+    id: "8",
+    title: "Game Theory and Strategic Decision-Making",
+    author: "Prof. Mark Davis",
+    type: "Book",
+    year: 2021,
+    description:
+      "A comprehensive overview of game theory and its applications in economics, political science, and evolutionary biology.",
+  },
+]
+
+const researchItems = [
+  {
+    title: "Linear Algebra",
+    items: linear_algebra,
+  },
+  {
+    title: "Calculus",
+    items: calculus,
+  },
+]
+
 export default function DocumentList() {
+  const params = useParams()
+  console.log('doc list params', params)
+
+  const items = researchItems.find((item) => item.title === params.category)?.items ?? []
   return (
     <main className="min-h-screen bg-gray-50">
-      <ResearchList items={researchItems} />
+      <ResearchList items={items} />
     </main>
   )
 }
