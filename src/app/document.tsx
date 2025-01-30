@@ -3,10 +3,14 @@ import DocumentViewer from "@/components/document/viewer"
 import ChatDialog from "@/components/document/chat"
 import { Button } from "@/components/ui/button"
 import { Expand } from "lucide-react"
+import PDFViewer from "@/components/document/pdf-viewer"
+import { useParams } from "react-router"
 
 export default function ResearchAssistant() {
   const [isDocumentPopped, setIsDocumentPopped] = useState(false)
   const [isChatPopped, setIsChatPopped] = useState(false)
+
+  const {document} = useParams()
 
   const popOutDocument = () => {
     setIsDocumentPopped(true)
@@ -16,6 +20,14 @@ export default function ResearchAssistant() {
     setIsChatPopped(true)
   }
 
+  const getDocument = () => {
+    return document
+  }
+
+  const [file, setFile] = useState<File | null>(null)
+
+
+
   return (
     <div className="flex h-full bg-gray-100">
       {!isDocumentPopped && (
@@ -23,7 +35,8 @@ export default function ResearchAssistant() {
           <Button className="absolute top-4 right-4 z-10" onClick={popOutDocument} variant="ghost" size="sm">
             <Expand/>
           </Button>
-          <DocumentViewer />
+          <PDFViewer file={file}/>
+          {/* <DocumentViewer /> */}
         </div>
       )}
       {!isChatPopped && (

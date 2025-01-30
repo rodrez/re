@@ -83,7 +83,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <TeamSwitcher teams={data.teams} />
         </SidebarHeader>
         <SidebarContent>
-          {/* <NavMain items={categories} /> */}
           <NavProjects items={categories} />
         </SidebarContent>
         <SidebarFooter>
