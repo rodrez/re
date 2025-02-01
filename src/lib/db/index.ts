@@ -83,5 +83,17 @@ db.open().catch((err) => {
     console.error("Failed to open db:", err.stack || err);
 });
 
+// Initialize default category
+db.on('ready', async () => {
+    // Check if uncategorized category exists
+    const uncategorized = await db.categories.where('name').equals('uncategorized').first();
+    if (!uncategorized) {
+        // Create uncategorized category
+        await db.categories.add({
+            name: 'uncategorized',
+        });
+    }
+});
+
 export type { Document, Category, DocumentCategory, Model, Interaction, Dependency };
 export { db };

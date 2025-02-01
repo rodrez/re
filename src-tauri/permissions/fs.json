@@ -1,0 +1,26 @@
+{
+  "identifier": "fs-access",
+  "description": "Filesystem access permissions for document storage",
+  "commands": [
+    "read_file",
+    "write_file",
+    "read_dir",
+    "create_dir",
+    "exists"
+  ],
+  "scope": {
+    "allow": [
+      "$APP/**",
+      "$APPDATA/**",
+      "$APPCONFIG/**",
+      "$APPCACHE/**",
+      "$RESOURCE/**",
+      "$LOCALDATA/**",
+      "$DOCUMENT/**",
+      "$DOWNLOAD/**",
+      "$PICTURE/**",
+      "$LIBRARY/**"
+    ],
+    "deny": []
+  }
+} 

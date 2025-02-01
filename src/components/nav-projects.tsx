@@ -1,5 +1,4 @@
 import {
-  Folder,
   Forward,
   MoreHorizontal,
   Trash2,

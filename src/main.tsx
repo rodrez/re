@@ -6,6 +6,7 @@ import Dashboard from "./app/dashboard";
 import DocumentList from "./app/document-list";
 import DocumentPage from "./app/document";
 import { CommandHome } from "./components/command/home";
+import Settings from "./app/settings";
 
 
 
@@ -19,6 +20,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
           } />
           <Route path="/:category" element={<DocumentList />} />
           <Route path="/:category/:document" element={<DocumentPage />} />
+          <Route path="/settings" element={<Settings />} />
         </Route>
       </Routes>
     </BrowserRouter>

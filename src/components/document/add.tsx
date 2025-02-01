@@ -7,6 +7,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
+import { db } from "@/lib/db"
+import { searchService } from "@/lib/search"
+import { invoke } from '@tauri-apps/api/core'
 
 interface UploadDialogProps {
   open: boolean
@@ -17,10 +20,12 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
   const [link, setLink] = useState("")
   const [error, setError] = useState("")
   const [isDragging, setIsDragging] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
 
-  const handleLinkSubmit = (e: React.FormEvent) => {
+  const handleLinkSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
+    setIsLoading(true)
 
     const isValidUrl = (url: string) => {
       try {
@@ -33,12 +38,51 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
 
     if (!isValidUrl(link)) {
       setError("Please enter a valid PDF or Markdown file URL")
+      setIsLoading(false)
       return
     }
 
-    // Handle link submission
-    console.log("Link submitted:", link)
-    setLink("")
+    try {
+      // Extract filename from URL
+      const fileName = link.split("/").pop() || "document"
+
+      // Fetch the file content
+      const response = await fetch(link)
+      if (!response.ok) {
+        throw new Error("Failed to fetch file")
+      }
+
+      // Get the file data as bytes
+      const fileData = new Uint8Array(await response.arrayBuffer())
+
+      // Save file using Tauri command
+      const filePath = await invoke<string>("save_file", {
+        fileName,
+        fileData: Array.from(fileData) // Convert Uint8Array to regular array for serialization
+      })
+
+      // Add document to database
+      const docId = await db.documents.add({
+        title: fileName,
+        filePath: filePath,
+        type: link.toLowerCase().endsWith(".pdf") ? "pdf" : "text",
+        importDate: new Date(),
+      })
+
+      // Update search index
+      const doc = await db.documents.get(docId)
+      if (doc) {
+        await searchService.addDocument(doc)
+      }
+
+      setLink("")
+      onOpenChange(false)
+    } catch (err) {
+      setError("Failed to import document. Please try again.")
+      console.error("Error importing document:", err)
+    }
+
+    setIsLoading(false)
   }
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -63,9 +107,50 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
     handleFiles(files)
   }
 
-  const handleFiles = (files: File[]) => {
-    // Handle file upload
-    console.log("Files to upload:", files)
+  const handleFiles = async (files: File[]) => {
+    setIsLoading(true)
+    setError("")
+
+    try {
+      for (const file of files) {
+        // Validate file type
+        if (!file.type.includes("pdf") && !file.name.toLowerCase().endsWith(".md")) {
+          setError("Only PDF and Markdown files are supported")
+          continue
+        }
+
+        // Read file as array buffer
+        const buffer = await file.arrayBuffer()
+        const fileData = new Uint8Array(buffer)
+
+        // Save file using Tauri command
+        const filePath = await invoke<string>("save_file", {
+          fileName: file.name,
+          fileData: Array.from(fileData) // Convert Uint8Array to regular array for serialization
+        })
+
+        // Add document to database
+        const docId = await db.documents.add({
+          title: file.name,
+          filePath: filePath,
+          type: file.type.includes("pdf") ? "pdf" : "text",
+          importDate: new Date(),
+        })
+
+        // Update search index
+        const doc = await db.documents.get(docId)
+        if (doc) {
+          await searchService.addDocument(doc)
+        }
+      }
+
+      onOpenChange(false)
+    } catch (err) {
+      setError("Failed to upload files. Please try again.")
+      console.error("Error uploading files:", err)
+    }
+
+    setIsLoading(false)
   }
 
   return (
@@ -87,12 +172,13 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
                   value={link}
                   onChange={(e) => setLink(e.target.value)}
                   className={cn(error && "border-red-500")}
+                  disabled={isLoading}
                 />
                 {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
               </div>
-              <Button type="submit" size="sm">
+              <Button type="submit" size="sm" disabled={isLoading}>
                 <Link2 className="mr-2 h-4 w-4" />
-                Add
+                {isLoading ? "Adding..." : "Add"}
               </Button>
             </form>
             <p className="text-sm text-muted-foreground">Add links to PDF or Markdown files</p>
@@ -109,12 +195,28 @@ export function UploadDialog({ open, onOpenChange }: UploadDialogProps) {
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
             >
-              <input type="file" id="file-upload" className="sr-only" multiple onChange={handleFileSelect} />
-              <label htmlFor="file-upload" className="grid cursor-pointer place-items-center gap-1 text-center">
+              <input
+                type="file"
+                id="file-upload"
+                className="sr-only"
+                multiple
+                onChange={handleFileSelect}
+                accept=".pdf,.md"
+                disabled={isLoading}
+              />
+              <label
+                htmlFor="file-upload"
+                className={cn(
+                  "grid cursor-pointer place-items-center gap-1 text-center",
+                  isLoading && "pointer-events-none opacity-50"
+                )}
+              >
                 <FileUp className="h-8 w-8 text-muted-foreground" />
-                <p className="text-sm font-medium">Drag and drop files here, or click to select files</p>
+                <p className="text-sm font-medium">
+                  {isLoading ? "Uploading..." : "Drag and drop files here, or click to select files"}
+                </p>
                 <p className="text-xs text-muted-foreground">
-                  Upload documents, images, or other files from your device
+                  Upload PDF or Markdown files from your device
                 </p>
               </label>
             </div>

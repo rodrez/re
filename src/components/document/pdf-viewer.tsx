@@ -24,16 +24,21 @@ import 'react-pdf/dist/Page/TextLayer.css';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 
 // Set up the worker
-// pdfjs.GlobalWorkerOptions.workerSrc = ""
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
-// Highlgiht search
+// Highlight search
 function highlightPattern(text: string, pattern: string) {
   if (!pattern) return text;
   return text.replace(pattern, (value) => `<span class="bg-teal-400/40 text-black font-semibold rounded p-0.5">${value}</span>`);
 }
 
-const PDFViewer = ({ file }: { file: File }) => {
+interface PDFViewerProps {
+  fileData: Uint8Array | null;
+  fileName?: string;
+  fileType?: 'pdf' | 'text' | 'other';
+}
+
+const PDFViewer = ({ fileData, fileName, fileType }: PDFViewerProps) => {
   // State for PDF handling
   const [numPages, setNumPages] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -42,12 +47,9 @@ const PDFViewer = ({ file }: { file: File }) => {
   const { toast } = useToast();
   const [searchText, setSearchText] = useState('');
 
-  function onChange(event) {
+  function onChange(event: React.ChangeEvent<HTMLInputElement>) {
     setSearchText(event.target.value);
   }
-
-  // TODO: Remove this when file saving is implemented
-  const [testFile, setTestFile] = useState<File | null>(null);
 
   // Handle successful PDF load
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
@@ -93,9 +95,23 @@ const PDFViewer = ({ file }: { file: File }) => {
   );
 
   const textRenderer = useCallback(
-    (textItem) => highlightPattern(textItem.str, searchText),
+    (textItem: { str: string }) => highlightPattern(textItem.str, searchText),
     [searchText]
-  )
+  );
+
+  const handleDownload = useCallback(() => {
+    if (!fileData || !fileName) return;
+
+    const blob = new Blob([fileData], { type: fileType === 'pdf' ? 'application/pdf' : 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [fileData, fileName, fileType]);
 
   return (
     <Card className="w-full mx-auto bg-white shadow-lg h-full">
@@ -135,15 +151,9 @@ const PDFViewer = ({ file }: { file: File }) => {
           </Button>
         </div>
         <div>
-        <label htmlFor="search">Search:</label>
-        <input type="search" id="search" value={searchText} onChange={onChange} />
-      </div>
-        {/* Remove this when file saving is implemented */}
-        <input
-          type="file"
-          accept=".pdf"
-          onChange={(e) => setTestFile(e.target.files[0])}
-        />
+          <label htmlFor="search">Search:</label>
+          <input type="search" id="search" value={searchText} onChange={onChange} />
+        </div>
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2">
             <Button
@@ -183,7 +193,8 @@ const PDFViewer = ({ file }: { file: File }) => {
             <Button
               variant="outline"
               size="icon"
-              disabled={!file}
+              onClick={handleDownload}
+              disabled={!fileData || !fileName}
             >
               <Download className="h-4 w-4" />
             </Button>
@@ -208,21 +219,27 @@ const PDFViewer = ({ file }: { file: File }) => {
               transition: 'transform 0.2s ease-in-out'
             }}
           >
-            <Document
-              file={file ?? testFile}
-              onLoadSuccess={onDocumentLoadSuccess}
-              onLoadError={onDocumentLoadError}
-              loading={<LoadingMessage />}
-            >
-              <Page
-                pageNumber={currentPage}
-                scale={zoomLevel / 100}
-                rotate={rotation}
+            {fileData ? (
+              <Document
+                file={new Blob([fileData], { type: 'application/pdf' })}
+                onLoadSuccess={onDocumentLoadSuccess}
+                onLoadError={onDocumentLoadError}
                 loading={<LoadingMessage />}
-                renderTextLayer={true}   // Keep true to allow selection.
-                customTextRenderer={textRenderer}
-              />
-            </Document>
+              >
+                <Page
+                  pageNumber={currentPage}
+                  scale={zoomLevel / 100}
+                  rotate={rotation}
+                  loading={<LoadingMessage />}
+                  renderTextLayer={true}
+                  customTextRenderer={textRenderer}
+                />
+              </Document>
+            ) : (
+              <div className="flex items-center justify-center p-8">
+                <p className="text-gray-500">No document loaded</p>
+              </div>
+            )}
           </div>
         </CardContent>
       </ScrollArea>

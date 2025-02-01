@@ -12,10 +12,12 @@ interface CardProps {
 }
 
 const ResearchCard: FC<CardProps> = ({ title, author, type, year, description }) => {
-  const {category} = useParams()
+  const { category } = useParams()
   return (
-    <Link to={`/${category}/${title.toLowerCase().replace(/\s+/g, "-")}`} className="hover:border-primary border border-transparent">
-      <Card className="flex flex-col h-full">
+    <Link
+      to={`/${category}/${title.toLowerCase().replace(/\s+/g, "-")}`}
+      className="hover:border-primary border-2 border-transparent rounded-md">
+      <Card className="flex flex-col h-full ">
         <CardHeader>
           <div className="flex justify-between items-start">
             <h3 className="text-lg font-semibold">{title}</h3>

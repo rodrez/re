@@ -9,7 +9,10 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command"
-import { Plus, Search, Users, HelpCircle } from "lucide-react"
+import { FileText, FolderTree, Plus } from "lucide-react"
+import { useSearch } from "@/hooks/useSearch"
+import { useCallback } from "react"
+import type { Document, Category } from "@/lib/db"
 
 interface CommandPaletteProps {
   defaultOpen?: boolean
@@ -17,6 +20,7 @@ interface CommandPaletteProps {
 
 export function CommandPalette({ defaultOpen = false }: CommandPaletteProps) {
   const [open, setOpen] = React.useState(defaultOpen)
+  const { search, results, isIndexing } = useSearch()
 
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -30,44 +34,71 @@ export function CommandPalette({ defaultOpen = false }: CommandPaletteProps) {
     return () => document.removeEventListener("keydown", down)
   }, [])
 
+  const handleSearch = useCallback((value: string) => {
+    search(value)
+  }, [search])
+
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
-      <CommandInput placeholder="What do you need?" />
+      <CommandInput 
+        placeholder="Search documents and categories..." 
+        onValueChange={handleSearch}
+      />
       <CommandList>
         <CommandEmpty>No results found.</CommandEmpty>
-        <CommandGroup heading="Projects">
+        {isIndexing && (
+          <div className="py-6 text-center text-sm">Initializing search...</div>
+        )}
+        {results.length > 0 && (
+          <>
+            <CommandGroup heading="Documents">
+              {results
+                .filter((result): result is { type: "document"; item: Document } => 
+                  result.type === "document"
+                )
+                .map((result) => (
+                  <CommandItem
+                    key={`${result.type}-${result.item.id}`}
+                    value={`doc-${result.item.id}`}
+                  >
+                    <FileText className="mr-2 h-4 w-4" />
+                    <div className="flex flex-col">
+                      <span>{result.item.title}</span>
+                      {result.item.summary && (
+                        <span className="text-sm text-muted-foreground">
+                          {result.item.summary.slice(0, 100)}
+                          {result.item.summary.length > 100 ? "..." : ""}
+                        </span>
+                      )}
+                    </div>
+                  </CommandItem>
+                ))}
+            </CommandGroup>
+            <CommandGroup heading="Categories">
+              {results
+                .filter((result): result is { type: "category"; item: Category } => 
+                  result.type === "category"
+                )
+                .map((result) => (
+                  <CommandItem
+                    key={`${result.type}-${result.item.id}`}
+                    value={`cat-${result.item.id}`}
+                  >
+                    <FolderTree className="mr-2 h-4 w-4" />
+                    <span>{result.item.name}</span>
+                  </CommandItem>
+                ))}
+            </CommandGroup>
+          </>
+        )}
+        <CommandGroup heading="Actions">
           <CommandItem>
-            <Search className="mr-2 h-4 w-4" />
-            <span>Search Projects...</span>
-            <kbd className="ml-auto pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-              <span className="text-xs">⌘</span>P
-            </kbd>
+            <Plus className="mr-2 h-4 w-4" />
+            <span>Create New Document</span>
           </CommandItem>
           <CommandItem>
             <Plus className="mr-2 h-4 w-4" />
-            <span>Create New Project...</span>
-          </CommandItem>
-        </CommandGroup>
-        <CommandGroup heading="Teams">
-          <CommandItem>
-            <Users className="mr-2 h-4 w-4" />
-            <span>Search Teams...</span>
-            <kbd className="ml-auto pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-              <span className="text-xs">↑</span>P
-            </kbd>
-          </CommandItem>
-          <CommandItem>
-            <Plus className="mr-2 h-4 w-4" />
-            <span>Create New Team...</span>
-          </CommandItem>
-        </CommandGroup>
-        <CommandGroup heading="Help">
-          <CommandItem>
-            <HelpCircle className="mr-2 h-4 w-4" />
-            <span>Search Docs...</span>
-            <kbd className="ml-auto pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-              <span className="text-xs">↑</span>D
-            </kbd>
+            <span>Create New Category</span>
           </CommandItem>
         </CommandGroup>
       </CommandList>

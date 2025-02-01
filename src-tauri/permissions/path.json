@@ -1,0 +1,20 @@
+{
+  "identifier": "path-access",
+  "description": "Path access permissions for document storage",
+  "commands": [
+    "resolve",
+    "join",
+    "normalize",
+    "dirname",
+    "basename"
+  ],
+  "scope": {
+    "allow": [
+      "$APPDATA/documents/**",
+      "$APPCONFIG/documents/**",
+      "$APPCACHE/documents/**",
+      "$RESOURCE/*"
+    ],
+    "deny": []
+  }
+} 
