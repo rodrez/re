@@ -5,7 +5,7 @@ import { invoke } from "@tauri-apps/api/core";
 
 interface SettingsState {
   documentPath: string | null;
-  setDocumentPath: (path: string) => void;
+  setDocumentPath: (path: string) => Promise<void>;
   selectDocumentPath: () => Promise<void>;
   initialized: boolean;
   initializeDocumentPath: () => Promise<void>;
@@ -22,6 +22,7 @@ export const useSettings = create<SettingsState>()(
           set({ documentPath: path });
         } catch (error) {
           console.error("Failed to set document path:", error);
+          throw error;
         }
       },
       selectDocumentPath: async () => {
@@ -29,12 +30,15 @@ export const useSettings = create<SettingsState>()(
           const selected = await open({
             directory: true,
             multiple: false,
+            defaultPath: get().documentPath || undefined,
           });
+          
           if (selected && typeof selected === "string") {
             await get().setDocumentPath(selected);
           }
         } catch (error) {
           console.error("Failed to select directory:", error);
+          throw error;
         }
       },
       initializeDocumentPath: async () => {
@@ -51,6 +55,7 @@ export const useSettings = create<SettingsState>()(
     }),
     {
       name: "app-settings",
+      partialize: (state) => ({ initialized: state.initialized }),
     },
   ),
 );

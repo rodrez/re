@@ -32,6 +32,7 @@ export default function ResearchAssistant() {
   const [fileData, setFileData] = useState<Uint8Array | null>(null)
   const [currentDoc, setCurrentDoc] = useState<{ id: number; title: string; type: 'pdf' | 'text' | 'other' } | null>(null)
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false)
+  const [fileUrl, setFileUrl] = useState();
   const navigate = useNavigate()
 
   const { category: categoryName, document: documentSlug } = useParams()

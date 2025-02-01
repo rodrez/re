@@ -18,7 +18,14 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": {
+        "default-src": ["'self'"],
+        "img-src": ["'self'", "data:", "blob:"],
+        "script-src": ["'self'", "https://unpkg.com"],
+        "style-src": ["'self'", "'unsafe-inline'"],
+        "connect-src": ["'self'", "https://unpkg.com"],
+        "worker-src": ["'self'", "blob:", "https://unpkg.com"]
+      }
     }
   },
   "bundle": {

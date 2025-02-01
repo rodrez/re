@@ -34,4 +34,20 @@ export default defineConfig({
       ignored: ["**/src-tauri/**"],
     },
   },
+  // Configure worker handling
+  worker: {
+    format: 'es',
+  },
+  optimizeDeps: {
+    exclude: ['pdfjs-dist'],
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          pdfjs: ['pdfjs-dist'],
+        },
+      },
+    },
+  },
 });
