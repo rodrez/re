@@ -1,264 +1,224 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { useState, useEffect, useRef } from 'react';
+import { Document, Page, pdfjs } from 'react-pdf';
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Slider } from "@/components/ui/slider"
 import {
-  Download,
-  Search,
   ZoomIn,
   ZoomOut,
+  RotateCw,
   ChevronLeft,
   ChevronRight,
-} from "lucide-react";
-import * as pdfjsLib from 'pdfjs-dist';
-import { type PDFDocumentProxy } from 'pdfjs-dist';
-import { ScrollArea } from "@/components/ui/scroll-area";
+  Search,
+  Download,
+} from 'lucide-react';
 
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+import 'react-pdf/dist/Page/TextLayer.css';
+// Initialize PDF.js worker
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 interface PDFViewerProps {
   fileData: Uint8Array | null;
   fileName?: string;
   fileType?: 'pdf' | 'text' | 'other';
+  onLoadSuccess?: (numPages: number) => void;
+  onLoadError?: (error: Error) => void;
 }
 
-const PDFViewer = ({ fileData, fileName, fileType }: PDFViewerProps) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [pdfDoc, setPdfDoc] = useState<PDFDocumentProxy | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [scale, setScale] = useState(1.0);
-  const [isLoading, setIsLoading] = useState(false);
-  const [searchText, setSearchText] = useState('');
-  const [textContent, setTextContent] = useState<string>('');
+export function PDFViewer({ fileData, fileName, fileType, onLoadSuccess, onLoadError }: PDFViewerProps) {
+  const [numPages, setNumPages] = useState<number>(0);
+  const [pageNumber, setPageNumber] = useState<number>(1);
+  const [scale, setScale] = useState<number>(1.0);
+  const [rotation, setRotation] = useState<number>(0);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  // Load PDF document
   useEffect(() => {
-    if (!fileData) return;
+    if (fileData) {
+      // Create a blob URL from the file data
+      const blob = new Blob([fileData], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      setPdfUrl(url);
 
-    const loadPDF = async () => {
-      setIsLoading(true);
-      try {
-        const loadingTask = pdfjsLib.getDocument({ data: fileData });
-        const pdf = await loadingTask.promise;
-        setPdfDoc(pdf);
-        await renderPage(pdf, 1, scale); // Wait for the initial render to complete
-      } catch (error) {
-        console.error('Error loading PDF:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadPDF();
+      // Cleanup the URL when component unmounts or fileData changes
+      return () => {
+        URL.revokeObjectURL(url);
+      };
+    }
   }, [fileData]);
 
-  // Render PDF page
-  const renderPage = useCallback(async (pdf: PDFDocumentProxy, pageNumber: number, scale: number) => {
-    if (!canvasRef.current) return;
-
-    try {
-      const page = await pdf.getPage(pageNumber);
-      const viewport = page.getViewport({ scale });
-      const canvas = canvasRef.current;
-      const context = canvas.getContext('2d');
-
-      if (!context) return;
-
-      canvas.height = viewport.height;
-      canvas.width = viewport.width;
-
-      const renderContext = {
-        canvasContext: context,
-        viewport: viewport,
-      };
-
-      await page.render(renderContext).promise;
-
-      // Get text content for search
-      const textContent = await page.getTextContent();
-      setTextContent(textContent.items.map((item: any) => item.str).join(' '));
-
-    } catch (error) {
-      console.error('Error rendering page:', error);
-    }
-  }, []);
-
-  // Navigation functions
-  const goToPage = useCallback((pageNumber: number) => {
-    if (!pdfDoc) return;
-
-    const targetPage = Math.max(1, Math.min(pageNumber, pdfDoc.numPages));
-    if (targetPage !== currentPage) {
-      setCurrentPage(targetPage);
-      renderPage(pdfDoc, targetPage, scale);
-    }
-  }, [pdfDoc, currentPage, scale, renderPage]);
-
-  const handleZoom = (delta: number) => {
-    if (!pdfDoc) return;
-
-    const newScale = Math.max(0.25, Math.min(5.0, scale + delta));
-    setScale(newScale);
-    renderPage(pdfDoc, currentPage, newScale);
+  const handleDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
+    setNumPages(numPages);
+    onLoadSuccess?.(numPages);
   };
 
-  const handleDownload = useCallback(() => {
-    if (!fileData || !fileName) return;
-    const blob = new Blob([fileData], { type: 'application/pdf' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }, [fileData, fileName]);
+  const handleZoomIn = () => {
+    setScale((prevScale) => Math.min(prevScale + 0.1, 3));
+  };
 
-  const handleSearch = useCallback(() => {
-    if (!searchText || !textContent) return;
+  const handleZoomOut = () => {
+    setScale((prevScale) => Math.max(prevScale - 0.1, 0.5));
+  };
 
-    const searchRegex = new RegExp(searchText, 'gi');
-    const matches = textContent.match(searchRegex);
+  const handleRotate = () => {
+    setRotation((prevRotation) => (prevRotation + 90) % 360);
+  };
 
-    if (matches) {
-      // Highlight matches in canvas (you could implement this)
-      console.log(`Found ${matches.length} matches`);
+  const handlePrevPage = () => {
+    setPageNumber((prevPageNumber) => Math.max(prevPageNumber - 1, 1));
+  };
+
+  const handleNextPage = () => {
+    setPageNumber((prevPageNumber) => Math.min(prevPageNumber + 1, numPages));
+  };
+
+  const handlePageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const page = parseInt(event.target.value);
+    if (page >= 1 && page <= numPages) {
+      setPageNumber(page);
     }
-  }, [searchText, textContent]);
+  };
 
-  // Handle keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement) return;
+  const handleDownload = async () => {
+    if (!fileData || !fileName) return;
 
-      if (e.key === 'ArrowLeft' || (e.key === 'p' && e.ctrlKey)) {
-        e.preventDefault();
-        goToPage(currentPage - 1);
-      } else if (e.key === 'ArrowRight' || (e.key === 'n' && e.ctrlKey)) {
-        e.preventDefault();
-        goToPage(currentPage + 1);
-      } else if (e.key === '+' && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        handleZoom(0.25);
-      } else if (e.key === '-' && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        handleZoom(-0.25);
-      }
-    };
+    try {
+      const blob = new Blob([fileData], { type: 'application/pdf' });
+      const downloadUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+    }
+  };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentPage, scale]);
+  if (!fileData || !pdfUrl || fileType !== 'pdf') {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <p className="text-muted-foreground">No PDF document loaded</p>
+      </div>
+    );
+  }
 
   return (
-    <Card className="w-full h-full bg-white shadow-lg overflow-hidden flex flex-col">
-      {/* Controls */}
+    <div className="flex flex-col h-full" ref={containerRef}>
       <div className="flex items-center justify-between p-2 border-b">
         <div className="flex items-center space-x-2">
           <Button
             variant="outline"
             size="icon"
-            onClick={() => goToPage(currentPage - 1)}
-            disabled={!pdfDoc || currentPage <= 1}
+            onClick={handleZoomOut}
+            title="Zoom Out"
           >
-            <ChevronLeft className="h-4 w-4" />
+            <ZoomOut className="h-4 w-4" />
           </Button>
-
-          <div className="flex items-center space-x-2">
-            <Input
-              type="number"
-              min={1}
-              max={pdfDoc?.numPages || 1}
-              value={currentPage}
-              onChange={(e) => goToPage(parseInt(e.target.value))}
-              className="w-16 text-center"
-            />
-            <span className="text-sm text-gray-500">
-              of {pdfDoc?.numPages || '-'}
-            </span>
-          </div>
-
+          <Slider
+            value={[scale * 100]}
+            min={50}
+            max={300}
+            step={10}
+            className="w-32"
+            onValueChange={(value) => setScale(value[0] / 100)}
+          />
           <Button
             variant="outline"
             size="icon"
-            onClick={() => goToPage(currentPage + 1)}
-            disabled={!pdfDoc || currentPage >= (pdfDoc?.numPages || 1)}
+            onClick={handleZoomIn}
+            title="Zoom In"
           >
-            <ChevronRight className="h-4 w-4" />
+            <ZoomIn className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleRotate}
+            title="Rotate"
+          >
+            <RotateCw className="h-4 w-4" />
           </Button>
         </div>
 
         <div className="flex items-center space-x-2">
-          <div className="flex items-center space-x-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handlePrevPage}
+            disabled={pageNumber <= 1}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <div className="flex items-center space-x-1">
             <Input
-              type="text"
-              placeholder="Search..."
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              className="w-40"
+              type="number"
+              min={1}
+              max={numPages}
+              value={pageNumber}
+              onChange={handlePageChange}
+              className="w-16 text-center"
             />
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={handleSearch}
-            >
-              <Search className="h-4 w-4" />
-            </Button>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => handleZoom(-0.25)}
-            >
-              <ZoomOut className="h-4 w-4" />
-            </Button>
-            <span className="text-sm text-gray-500 w-16 text-center">
-              {Math.round(scale * 100)}%
+            <span className="text-sm text-muted-foreground">
+              / {numPages}
             </span>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => handleZoom(0.25)}
-            >
-              <ZoomIn className="h-4 w-4" />
-            </Button>
           </div>
-
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleNextPage}
+            disabled={pageNumber >= numPages}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
           <Button
             variant="outline"
             size="icon"
             onClick={handleDownload}
+            title="Download"
           >
             <Download className="h-4 w-4" />
           </Button>
         </div>
+
+        <div className="flex items-center space-x-2">
+          <Input
+            type="text"
+            placeholder="Search..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-40"
+          />
+          <Button variant="outline" size="icon">
+            <Search className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
-      {/* PDF Viewer */}
-      <ScrollArea className="flex-1">
-        <div className="flex justify-center p-4 min-h-full bg-gray-100">
-          {isLoading ? (
-            <div className="flex items-center justify-center">
-              <span className="text-gray-500">Loading PDF...</span>
-            </div>
-          ) : fileData ? (
-            <canvas
-              ref={canvasRef}
-              className="shadow-lg bg-white"
+      <div className="flex-1 overflow-auto bg-muted/10">
+        <div className="flex justify-center">
+          <Document
+            file={pdfUrl}
+            onLoadSuccess={handleDocumentLoadSuccess}
+            onLoadError={onLoadError}
+            className="max-w-full"
+          >
+            <Page
+              pageNumber={pageNumber}
+              scale={scale}
+              rotate={rotation}
+              className="shadow-lg"
+              renderTextLayer={true}
+              renderAnnotationLayer={true}
             />
-          ) : (
-            <div className="flex items-center justify-center">
-              <p className="text-gray-500">No document loaded</p>
-            </div>
-          )}
+          </Document>
         </div>
-      </ScrollArea>
-    </Card>
+      </div>
+    </div>
   );
-};
-
-export default PDFViewer;
+}
