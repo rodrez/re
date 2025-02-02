@@ -5,6 +5,8 @@ import {
   LogOut,
   Settings,
   Sparkles,
+  Bot,
+  Check,
 } from "lucide-react"
 
 import {
@@ -19,6 +21,9 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -29,6 +34,7 @@ import {
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { useNavigate } from "react-router"
+import { useAIModel } from "@/lib/contexts/ai-model-context"
 
 export function NavUser({
   user,
@@ -41,6 +47,7 @@ export function NavUser({
 }) {
   const { isMobile } = useSidebar()
   const navigate = useNavigate()
+  const { selectedModel, setSelectedModel, models } = useAIModel()
 
   return (
     <SidebarMenu>
@@ -82,23 +89,71 @@ export function NavUser({
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <Bot className="mr-2 h-4 w-4" />
+                  <span>AI Model: {selectedModel.name}</span>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="p-2">
+                  <div className="flex flex-col gap-2">
+                    <div className="text-sm font-semibold">OpenAI Models</div>
+                    {models.filter(model => model.provider === "openai").map((model) => (
+                      <DropdownMenuItem
+                        key={model.id}
+                        onClick={() => setSelectedModel(model)}
+                        className="cursor-pointer"
+                      >
+                        {selectedModel.id === model.id && (
+                          <Check className="mr-2 h-4 w-4" />
+                        )}
+                        <span className={selectedModel.id === model.id ? "font-medium" : ""}>
+                          {model.name}
+                        </span>
+                      </DropdownMenuItem>
+                    ))}
+                    <DropdownMenuSeparator />
+                    <div className="text-sm font-semibold">Ollama Models</div>
+                    {models.filter(model => model.provider === "ollama").map((model) => (
+                      <DropdownMenuItem
+                        key={model.id}
+                        onClick={() => setSelectedModel(model)}
+                        className="cursor-pointer"
+                        disabled={!model.isAvailable}
+                      >
+                        {selectedModel.id === model.id && (
+                          <Check className="mr-2 h-4 w-4" />
+                        )}
+                        <span className={selectedModel.id === model.id ? "font-medium" : ""}>
+                          {model.name}
+                        </span>
+                        {!model.isAvailable && (
+                          <span className="ml-2 text-xs text-muted-foreground">(Coming Soon)</span>
+                        )}
+                      </DropdownMenuItem>
+                    ))}
+                  </div>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
               <DropdownMenuItem>
-                <Sparkles />
+                <Sparkles className="mr-2 h-4 w-4" />
                 Upgrade to Pro
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem>
-                <BadgeCheck />
+                <BadgeCheck className="mr-2 h-4 w-4" />
                 Account
               </DropdownMenuItem>
               <DropdownMenuItem>
-                <CreditCard />
+                <CreditCard className="mr-2 h-4 w-4" />
                 Billing
               </DropdownMenuItem>
               <DropdownMenuItem>
-                <Settings />
+                <Settings className="mr-2 h-4 w-4" />
                 <Button variant='ghost' onClick={() => navigate('/settings')}>
                   Settings
                 </Button>
@@ -106,7 +161,7 @@ export function NavUser({
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem>
-              <LogOut />
+              <LogOut className="mr-2 h-4 w-4" />
               Log out
             </DropdownMenuItem>
           </DropdownMenuContent>

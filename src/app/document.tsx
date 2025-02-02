@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import ChatDialog from "@/components/document/chat"
 import { Button } from "@/components/ui/button"
 import { Expand, Trash2, FolderEdit } from "lucide-react"
@@ -34,6 +34,8 @@ export default function ResearchAssistant() {
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false)
   const [fileUrl, setFileUrl] = useState();
   const navigate = useNavigate()
+  const [selectedText, setSelectedText] = useState<string>("")
+  const chatRef = useRef<{ sendMessage?: (text: string) => void }>(null)
 
   const { category: categoryName, document: documentSlug } = useParams()
 
@@ -187,6 +189,23 @@ export default function ResearchAssistant() {
     setIsDocumentPopped(true)
   }
 
+  const handleSendToChat = (text: string) => {
+    setSelectedText(text)
+    // If chat is not visible, make it visible
+    if (isChatPopped) {
+      setIsChatPopped(false)
+      // Give a small delay to ensure the chat is mounted
+      setTimeout(() => {
+        chatRef.current?.sendMessage?.(text)
+      }, 100)
+    } else {
+      chatRef.current?.sendMessage?.(text)
+    }
+  }
+
+  const handleExplainWithAI = (text: string) => {
+    handleSendToChat(`Please explain this text: "${text}"`)
+  }
 
   return (
     <div className="flex h-full bg-gray-100">
@@ -230,7 +249,13 @@ export default function ResearchAssistant() {
               <Expand />
             </Button>
           </div>
-          <PDFViewer fileData={fileData} fileName={currentDoc?.title} fileType={currentDoc?.type} />
+          <PDFViewer 
+            fileData={fileData} 
+            fileName={currentDoc?.title} 
+            fileType={currentDoc?.type}
+            onSendToChat={handleSendToChat}
+            onExplainWithAI={handleExplainWithAI}
+          />
         </div>
       )}
       {!isChatPopped && (
@@ -238,7 +263,7 @@ export default function ResearchAssistant() {
           <Button className="absolute top-4 right-4 z-10" onClick={popOutDocument} variant="ghost" size="sm">
             <Expand />
           </Button>
-          <ChatDialog />
+          <ChatDialog ref={chatRef} initialMessage={selectedText} />
         </div>
       )}
       {isDocumentPopped && (
@@ -252,7 +277,13 @@ export default function ResearchAssistant() {
             >
               Close
             </Button>
-            <PDFViewer fileData={fileData} fileName={currentDoc?.title} fileType={currentDoc?.type} />
+            <PDFViewer 
+              fileData={fileData} 
+              fileName={currentDoc?.title} 
+              fileType={currentDoc?.type}
+              onSendToChat={handleSendToChat}
+              onExplainWithAI={handleExplainWithAI}
+            />
           </div>
         </div>
       )}
@@ -267,7 +298,7 @@ export default function ResearchAssistant() {
             >
               Close
             </Button>
-            <ChatDialog />
+            <ChatDialog ref={chatRef} initialMessage={selectedText} />
           </div>
         </div>
       )}

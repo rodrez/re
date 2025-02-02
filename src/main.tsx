@@ -7,22 +7,23 @@ import DocumentList from "./app/document-list";
 import DocumentPage from "./app/document";
 import { CommandHome } from "./components/command/home";
 import Settings from "./app/settings";
-
-
+import { AIModelProvider } from "./lib/contexts/ai-model-context";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <BrowserRouter>
-      <Routes>
-        <Route element={<Dashboard />} >
-          <Route path="/" element={
-            <CommandHome />
-          } />
-          <Route path="/:category" element={<DocumentList />} />
-          <Route path="/:category/:document" element={<DocumentPage />} />
-          <Route path="/settings" element={<Settings />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+    <AIModelProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route element={<Dashboard />} >
+            <Route path="/" element={
+              <CommandHome />
+            } />
+            <Route path="/:category" element={<DocumentList />} />
+            <Route path="/:category/:document" element={<DocumentPage />} />
+            <Route path="/settings" element={<Settings />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </AIModelProvider>
   </React.StrictMode>,
 );
